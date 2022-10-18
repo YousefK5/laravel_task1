@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Book;
+use App\Models\Author;
 use Illuminate\Http\Request;
 
 class BookController extends Controller
@@ -13,33 +15,9 @@ class BookController extends Controller
      */
     public function index()
     {
-        $books = [
-            [
-                'id' => '1',
-                'name' => 'TestBook1',
-                'author' => 'Ahmed',
-                'desc' => 'lorem',
-                'img' =>
-                    'http://smartmobilestudio.com/wp-content/uploads/2012/06/leather-book-preview.png',
-            ],
-            [
-                'id' => '2',
-                'name' => 'TestBook2',
-                'author' => 'Mohammed',
-                'desc' => 'lorem',
-                'img' =>
-                    'http://smartmobilestudio.com/wp-content/uploads/2012/06/leather-book-preview.png',
-            ],
-            [
-                'id' => '3',
-                'name' => 'TestBook3',
-                'author' => 'Ali',
-                'desc' => 'lorem',
-                'img' =>
-                    'http://smartmobilestudio.com/wp-content/uploads/2012/06/leather-book-preview.png',
-            ],
-        ];
-        return view('book', ['booksArr' => $books]);
+        $booksArr = Book::all();
+        // dd($booksArr);
+        return view('books', ['booksArr' => $booksArr]);
     }
 
     /**
@@ -49,7 +27,9 @@ class BookController extends Controller
      */
     public function create()
     {
-        //
+        $authors = Author::all();
+        // dd($authors);
+        return view('add', ['authorsArr' => $authors]);
     }
 
     /**
@@ -60,16 +40,35 @@ class BookController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        // dd($request);
+        // $book = Book::create($request->all());
+        // return view('home',['booksArr'=>$book]);
+
+        $this->validate($request, [
+            'name' => 'required',
+            'description' => 'required',
+            'author_id' => 'required',
+            'image' => 'required',
+        ]);
+        $image = base64_encode(file_get_contents($request->file('image')));
+
+        $book = new Book();
+        $book->name = $request->name;
+        $book->description = $request->description;
+        $book->author_id = $request->author_id;
+        $book->image = $image;
+        $book->save();
+
+        return redirect('/books');
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param  \App\Models\Book  $book
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show(Book $book)
     {
         //
     }
@@ -77,34 +76,81 @@ class BookController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  int  $id
+     * @param  \App\Models\Book  $book
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
     {
-        //
+        $book = Book::find($id);
+        return view('edit', ['book' => $book]);
     }
 
     /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
+     * @param  \App\Models\Book  $book
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
-        //
+        $book = Book::find($id);
+        // dd($request);
+        $this->validate($request, [
+            'name' => 'required',
+            'description' => 'required',
+            'author' => 'required',
+        ]);
+        if ($request->image) {
+            $image = base64_encode(file_get_contents($request->file('image')));
+            $book->update([
+                'name' => $request->name,
+                'description' => $request->description,
+                'image' => $image,
+                'author' => $request->author,
+            ]);
+        } else {
+            $book->update([
+                'name' => $request->name,
+                'description' => $request->description,
+                'author' => $request->author,
+            ]);
+        }
+
+        return redirect('/books');
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param  \App\Models\Book  $book
      * @return \Illuminate\Http\Response
      */
-    public function destroy($id)
+    public function destroy(Request $request)
     {
-        //
+        Book::find($request->bookid)->delete();
+        return redirect('/books');
+    }
+
+    public function trash()
+    {
+        $booksArr = Book::onlyTrashed()->get();
+        return view('trash', ['booksArr' => $booksArr]);
+    }
+
+    public function restored($id)
+    {
+        Book::withTrashed()
+            ->where('id', $id)
+            ->restore();
+        return redirect('/books');
+    }
+
+    public function forceDelete(Request $request)
+    {
+        Book::withTrashed()
+            ->where('id', $request->bookid)
+            ->forceDelete();
+        return redirect('/trash');
     }
 }
